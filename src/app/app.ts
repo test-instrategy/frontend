@@ -121,49 +121,58 @@ export class App implements OnInit {
   }
 
   aplicarFiltros() {
-    this.isChartLoading = true;
-    const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
+  this.isChartLoading = true;
+  const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
 
-    this.ventaService.getVentas(filtros).subscribe(data => {
-      this.chart.changeData(data);
-      this.isChartLoading = false;
-    });
+  this.ventaService.getVentas(filtros).subscribe({
+    next: (data) => {
+      this.ventasRaw = data;
+      this.renderChart(data); 
+      this.isChartLoading = false; 
+    },
+    error: () => {
+      this.isChartLoading = false; 
+    }
+  });
 
-    this.ventaService.getStats(filtros).subscribe(stats => {
+  this.ventaService.getStats(filtros).subscribe({
+    next: (stats) => {
       this.totalVentas = stats.totalVentas;
       this.totalTransacciones = stats.totalTransacciones;
       this.promedioVentas = stats.promedioVentas;
-    });
-  }
+    }
+  });
+}
 
   renderChart(data: Venta[]) {
-    if (!this.chart) {
-      this.chart = new Column('container-grafico', {
-        data,
-        xField: 'marca',
-        yField: 'monto',
-        seriesField: 'categoria',
-        isGroup: true,
-        color: ['#1890ff', '#f5222d'],
-
-        label: {
-          position: 'middle',
-          style: {
-            fill: '#FFFFFF',
-            opacity: 0.6,
-          },
-        },
-
-        animation: {
-          appear: {
-            animation: 'scale-in-y',
-            duration: 1000,
-          },
-        },
-      });
-      this.chart.render();
-    } else {
-      this.chart.changeData(data);
+  
+  if (!data || data.length === 0) {
+    if (this.chart) {
+      this.chart.changeData([]);
     }
+    return;
   }
+
+  if (!this.chart) {
+    this.chart = new Column('container-grafico', {
+      data,
+      xField: 'marca',
+      yField: 'monto',
+      seriesField: 'categoria',
+      isGroup: true,
+      color: ['#1890ff', '#f5222d'],
+      label: {
+        position: 'middle',
+        style: { fill: '#FFFFFF', opacity: 0.6 },
+      },
+      animation: {
+        appear: { animation: 'scale-in-y', duration: 1000 },
+      },
+    });
+    this.chart.render();
+  } else {
+   
+    this.chart.changeData(data);
+  }
+}
 }
