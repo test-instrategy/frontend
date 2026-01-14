@@ -106,11 +106,17 @@ export class App implements OnInit {
   }
 
   guardar() {
+  
+    if (!this.nuevaVenta.categoria || !this.nuevaVenta.marca || this.nuevaVenta.monto <= 0) {
+      this.message.warning('Por favor, selecciona una categoría, marca y un monto válido superior a 0.');
+      return; 
+    }
+
     this.isSaving = true;
     this.ventaService.guardarVenta(this.nuevaVenta).subscribe({
       next: () => {
         this.cargarDatos();
-        this.message.success('Venta registrada');
+        this.message.success('Venta registrada correctamente');
         this.nuevaVenta = { categoria: '', marca: '', monto: 0 };
         this.isSaving = false;
       },
