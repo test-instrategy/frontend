@@ -8,68 +8,142 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { Venta } from './models/venta.model';
+import { VentaService } from './service/venta.service';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, CommonModule, FormsModule, NzSelectModule, NzButtonModule, NzInputNumberModule, NzCardModule],
+  imports: [RouterOutlet, CommonModule, FormsModule, NzSelectModule, NzButtonModule, NzInputNumberModule, NzCardModule, NzSkeletonModule,
+    NzSpinModule,   
+    NzIconModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App implements OnInit{
-  ventasRaw: any[] = [];
-  nuevaVenta = { categoria: null, marca: null, monto: 0 };
+  ventasRaw: Venta[] = [];
+  nuevaVenta: Venta = { categoria: '', marca: '', monto: 0 };
+  
   marcasForm: string[] = [];
   marcasFiltro: string[] = [];
+  
   catSeleccionada = 'Todas';
   marcaSeleccionada = 'Todas';
   chart: any;
 
-  constructor(private http: HttpClient) {}
+  productosConfig: Record<string, string[]> = {};
+  categorias: string[] = [];
 
-  ngOnInit() { this.cargarDatos(); }
+  isConfigLoading = true;  
+  isChartLoading = false;
+  isSaving = false;  
 
-  cargarDatos() {
-    this.http.get<any[]>('http://localhost:3000/api/ventas').subscribe(data => {
-      this.ventasRaw = data;
-      this.renderChart(data);
+  constructor(private ventaService: VentaService, private message: NzMessageService) {}
+
+  ngOnInit() {
+    this.cargarConfiguracion();
+    this.cargarDatos();
+  }
+
+
+  cargarConfiguracion() {
+    this.isConfigLoading = true;
+    this.ventaService.getProductosConfig().subscribe({
+      next: (config) => {
+        this.productosConfig = config;
+        this.categorias = Object.keys(config);
+        this.isConfigLoading = false;
+      },
+      error: () => {
+        this.message.error('Error al cargar configuración');
+        this.isConfigLoading = false;
+      }
     });
   }
 
-  // Lógica de cascada requerida
-  onCategoriaChange(cat: any, tipo: 'form' | 'filtro') {
-    const opciones: any = {
-      'Gaseosas': ['Coca Cola', 'Pepsi'],
-      'Aguas': ['San Luis', 'San Mateo']
-    };
+
+  cargarDatos() {
+    this.isChartLoading = true;
+    this.ventaService.getVentas().subscribe({
+      next: (data) => {
+        this.ventasRaw = data;
+        this.renderChart(data);
+        this.isChartLoading = false;
+      },
+      error: () => {
+        this.isChartLoading = false;
+      }
+    });
+  }
+
+  onCategoriaChange(cat: string, tipo: 'form' | 'filtro') {
+    
     if (tipo === 'form') {
-      this.marcasForm = opciones[cat] || [];
-      this.nuevaVenta.marca = null;
+      this.marcasForm = this.productosConfig[cat] || [];
+      this.nuevaVenta.marca = '';
     } else {
-      this.marcasFiltro = opciones[cat] || [];
+      this.marcasFiltro = this.productosConfig[cat] || [];
       this.marcaSeleccionada = 'Todas';
       this.aplicarFiltros();
     }
   }
 
   guardar() {
-    this.http.post('http://localhost:3000/api/ventas', this.nuevaVenta).subscribe(() => this.cargarDatos());
+    this.isSaving = true;
+    this.ventaService.guardarVenta(this.nuevaVenta).subscribe({
+      next: () => {
+        this.cargarDatos();
+        this.message.success('Venta registrada');
+        this.nuevaVenta = { categoria: '', marca: '', monto: 0 };
+        this.isSaving = false;
+      },
+      error: () => {
+        this.isSaving = false;
+        this.message.error('Error al guardar');
+      }
+    });
   }
 
   aplicarFiltros() {
-    const filtrado = this.ventasRaw.filter(v => 
-      (this.catSeleccionada === 'Todas' || v.categoria === this.catSeleccionada) &&
-      (this.marcaSeleccionada === 'Todas' || v.marca === this.marcaSeleccionada)
-    );
-    this.chart.changeData(filtrado);
+    this.isChartLoading = true;
+    const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
+    this.ventaService.getVentas(filtros).subscribe(data => {
+      this.chart.changeData(data);
+      this.isChartLoading = false;
+    });
   }
 
-  renderChart(data: any[]) {
-    if (!this.chart) {
-      this.chart = new Column('container-grafico', {
-        data, xField: 'marca', yField: 'monto', seriesField: 'categoria',
-        color: ['#1890ff', '#f5222d']
-      });
-      this.chart.render();
-    } else { this.chart.changeData(data); }
+  renderChart(data: Venta[]) {
+  if (!this.chart) {
+    this.chart = new Column('container-grafico', {
+      data,
+      xField: 'marca',
+      yField: 'monto',
+      seriesField: 'categoria',
+      isGroup: true,
+      color: ['#1890ff', '#f5222d'],
+      
+      label: {
+        position: 'middle',
+        style: {
+          fill: '#FFFFFF',
+          opacity: 0.6,
+        },
+      },
+      
+      animation: {
+        appear: {
+          animation: 'scale-in-y',
+          duration: 1000,
+        },
+      },
+    });
+    this.chart.render();
+  } else {
+    this.chart.changeData(data);
   }
+}
 }
