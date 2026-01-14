@@ -126,29 +126,29 @@ export class App implements OnInit {
     });
   }
 
+  
   aplicarFiltros() {
-  this.isChartLoading = true;
-  const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
+    this.isChartLoading = true;
+    const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
 
-  this.ventaService.getVentas(filtros).subscribe({
-    next: (data) => {
-      this.ventasRaw = data;
-      this.renderChart(data); 
-      this.isChartLoading = false; 
-    },
-    error: () => {
-      this.isChartLoading = false; 
-    }
-  });
+    
+    this.ventaService.getVentas(filtros).subscribe({
+      next: (dataAgrupada) => {
+        this.ventasRaw = dataAgrupada; 
+        this.renderChart(dataAgrupada); 
+        this.isChartLoading = false; 
+      },
+      error: () => this.isChartLoading = false
+    });
 
-  this.ventaService.getStats(filtros).subscribe({
-    next: (stats) => {
-      this.totalVentas = stats.totalVentas;
-      this.totalTransacciones = stats.totalTransacciones;
-      this.promedioVentas = stats.promedioVentas;
-    }
-  });
-}
+    this.ventaService.getStats(filtros).subscribe({
+      next: (stats) => {
+        this.totalVentas = stats.totalVentas;
+        this.totalTransacciones = stats.totalTransacciones;
+        this.promedioVentas = stats.promedioVentas;
+      }
+    });
+  }
 
   renderChart(data: Venta[]) {
   
@@ -169,6 +169,9 @@ export class App implements OnInit {
       color: ['#1890ff', '#f5222d'],
       label: {
         position: 'middle',
+        content: (item: Record<string, any>) => {
+          return `S/. ${item['monto']}`;
+        },
         style: { fill: '#FFFFFF', opacity: 0.6 },
       },
       animation: {
