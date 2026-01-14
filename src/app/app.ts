@@ -58,7 +58,6 @@ export class App implements OnInit{
         this.isConfigLoading = false;
       },
       error: () => {
-        this.message.error('Error al cargar configuración');
         this.isConfigLoading = false;
       }
     });
@@ -102,7 +101,6 @@ export class App implements OnInit{
       },
       error: () => {
         this.isSaving = false;
-        this.message.error('Error al guardar');
       }
     });
   }
