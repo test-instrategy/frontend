@@ -14,34 +14,44 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, CommonModule, FormsModule, NzSelectModule, NzButtonModule, NzInputNumberModule, NzCardModule, NzSkeletonModule,
+  imports: [RouterOutlet, 
+    CommonModule, 
+    FormsModule, 
+    NzSelectModule, 
+    NzButtonModule, 
+    NzInputNumberModule, 
+    NzCardModule, 
+    NzSkeletonModule,
     NzSpinModule,   
-    NzIconModule],
+    NzIconModule, NzEmptyModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App implements OnInit{
+export class App implements OnInit {
   ventasRaw: Venta[] = [];
   nuevaVenta: Venta = { categoria: '', marca: '', monto: 0 };
-  
+
   marcasForm: string[] = [];
   marcasFiltro: string[] = [];
-  
+
   catSeleccionada = 'Todas';
   marcaSeleccionada = 'Todas';
   chart: any;
 
   productosConfig: Record<string, string[]> = {};
   categorias: string[] = [];
-
-  isConfigLoading = true;  
+  totalVentas = 0;
+  promedioVentas = 0;
+  totalTransacciones = 0;
+  isConfigLoading = true;
   isChartLoading = false;
-  isSaving = false;  
+  isSaving = false;
 
-  constructor(private ventaService: VentaService, private message: NzMessageService) {}
+  constructor(private ventaService: VentaService, private message: NzMessageService) { }
 
   ngOnInit() {
     this.cargarConfiguracion();
@@ -66,20 +76,25 @@ export class App implements OnInit{
 
   cargarDatos() {
     this.isChartLoading = true;
+
     this.ventaService.getVentas().subscribe({
       next: (data) => {
         this.ventasRaw = data;
         this.renderChart(data);
         this.isChartLoading = false;
       },
-      error: () => {
-        this.isChartLoading = false;
-      }
+      error: () => this.isChartLoading = false
+    });
+
+    this.ventaService.getStats().subscribe(stats => {
+      this.totalVentas = stats.totalVentas;
+      this.totalTransacciones = stats.totalTransacciones;
+      this.promedioVentas = stats.promedioVentas;
     });
   }
 
   onCategoriaChange(cat: string, tipo: 'form' | 'filtro') {
-    
+
     if (tipo === 'form') {
       this.marcasForm = this.productosConfig[cat] || [];
       this.nuevaVenta.marca = '';
@@ -108,40 +123,47 @@ export class App implements OnInit{
   aplicarFiltros() {
     this.isChartLoading = true;
     const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
+
     this.ventaService.getVentas(filtros).subscribe(data => {
       this.chart.changeData(data);
       this.isChartLoading = false;
     });
+
+    this.ventaService.getStats(filtros).subscribe(stats => {
+      this.totalVentas = stats.totalVentas;
+      this.totalTransacciones = stats.totalTransacciones;
+      this.promedioVentas = stats.promedioVentas;
+    });
   }
 
   renderChart(data: Venta[]) {
-  if (!this.chart) {
-    this.chart = new Column('container-grafico', {
-      data,
-      xField: 'marca',
-      yField: 'monto',
-      seriesField: 'categoria',
-      isGroup: true,
-      color: ['#1890ff', '#f5222d'],
-      
-      label: {
-        position: 'middle',
-        style: {
-          fill: '#FFFFFF',
-          opacity: 0.6,
+    if (!this.chart) {
+      this.chart = new Column('container-grafico', {
+        data,
+        xField: 'marca',
+        yField: 'monto',
+        seriesField: 'categoria',
+        isGroup: true,
+        color: ['#1890ff', '#f5222d'],
+
+        label: {
+          position: 'middle',
+          style: {
+            fill: '#FFFFFF',
+            opacity: 0.6,
+          },
         },
-      },
-      
-      animation: {
-        appear: {
-          animation: 'scale-in-y',
-          duration: 1000,
+
+        animation: {
+          appear: {
+            animation: 'scale-in-y',
+            duration: 1000,
+          },
         },
-      },
-    });
-    this.chart.render();
-  } else {
-    this.chart.changeData(data);
+      });
+      this.chart.render();
+    } else {
+      this.chart.changeData(data);
+    }
   }
-}
 }

@@ -26,4 +26,9 @@ export class VentaService {
   getProductosConfig(): Observable<Record<string, string[]>> {
     return this.http.get<Record<string, string[]>>(`${environment.apiUrl}/config/productos`);
   }
+
+  
+  getStats(filtros?: FiltroVenta): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/ventas/stats`, { params: filtros as any });
+  }
 }
