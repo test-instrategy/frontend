@@ -9,3 +9,20 @@ export interface FiltroVenta {
   categoria: string;
   marca: string;
 }
+
+export interface DashboardStats {
+  totalVentas: number;
+  totalTransacciones: number;
+  promedioVentas: number;
+}
+
+
+export interface IndicadorMensual {
+  id: string;
+  mes: string;
+  real: number;
+  meta: number;
+  variacion: number;
+  score: number;
+  order?: number;
+}

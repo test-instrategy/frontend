@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { HttpClient } from '@angular/common/http';
-import { FiltroVenta, Venta } from '../models/venta.model';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { DashboardStats, FiltroVenta, IndicadorMensual, Venta } from '../models/venta.model';
 import { Observable } from 'rxjs';
 
 @Injectable({
@@ -14,7 +14,8 @@ export class VentaService {
 
 
   getVentas(filtros?: FiltroVenta): Observable<Venta[]> {
-    return this.http.get<Venta[]>(this.URL, { params: filtros as any });
+    const params = new HttpParams({ fromObject: filtros as any });
+    return this.http.get<Venta[]>(this.URL, { params });
   }
 
 
@@ -24,11 +25,23 @@ export class VentaService {
 
 
   getProductosConfig(): Observable<Record<string, string[]>> {
-    return this.http.get<Record<string, string[]>>(`${environment.apiUrl}/config/productos`);
+    return this.http.get<Record<string, string[]>>(`${this.URL}/config/productos`);
   }
 
   
-  getStats(filtros?: FiltroVenta): Observable<any> {
-    return this.http.get<any>(`${environment.apiUrl}/ventas/stats`, { params: filtros as any });
+  getStats(filtros?: FiltroVenta): Observable<DashboardStats> {
+    const params = new HttpParams({ fromObject: filtros as any });
+    return this.http.get<DashboardStats>(`${this.URL}/stats`, { params });
+  }
+
+
+  getIndicadoresMensuales(anio: number): Observable<IndicadorMensual[]> {
+    const params = new HttpParams().set('anio', anio.toString());
+    return this.http.get<IndicadorMensual[]>(`${this.URL}/indicadores-mes`, { params });
+  }
+
+  
+  actualizarMetaMensual(id: string, valor: number) {
+    return this.http.post(`${this.URL}/meta-mes`, { id, valor });
   }
 }

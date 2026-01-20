@@ -1,187 +1,258 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import { RouterOutlet } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { Column } from '@antv/g2plot';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { Venta } from './models/venta.model';
-import { VentaService } from './service/venta.service';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { VentaService } from './service/venta.service';
+import { Venta, DashboardStats, IndicadorMensual } from './models/venta.model';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, 
+  standalone: true,
+  imports: [ 
     CommonModule, 
-    FormsModule, 
+    FormsModule,         
+    ReactiveFormsModule,  
     NzSelectModule, 
     NzButtonModule, 
     NzInputNumberModule, 
     NzCardModule, 
     NzSkeletonModule,
     NzSpinModule,   
-    NzIconModule, NzEmptyModule],
+    NzIconModule, 
+    NzEmptyModule
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
+  
+
   ventasRaw: Venta[] = [];
-  nuevaVenta: Venta = { categoria: '', marca: '', monto: 0 };
-
-  marcasForm: string[] = [];
-  marcasFiltro: string[] = [];
-
-  catSeleccionada = 'Todas';
-  marcaSeleccionada = 'Todas';
-  chart: any;
+  indicadoresMes: IndicadorMensual[] = [];
+  stats: DashboardStats = { totalVentas: 0, totalTransacciones: 0, promedioVentas: 0 };
+  
 
   productosConfig: Record<string, string[]> = {};
   categorias: string[] = [];
-  totalVentas = 0;
-  promedioVentas = 0;
-  totalTransacciones = 0;
+  
+
+  ventaForm!: FormGroup;
+  marcasForm: string[] = [];
+  
+
+  catSeleccionada = 'Todas';
+  marcaSeleccionada = 'Todas';
+  marcasFiltro: string[] = []; 
+
+
   isConfigLoading = true;
-  isChartLoading = false;
+  isDashboardLoading = false; 
   isSaving = false;
 
-  constructor(private ventaService: VentaService, private message: NzMessageService) { }
+
+  chart: Column | null = null;
+
+  constructor(
+    private ventaService: VentaService, 
+    private message: NzMessageService,
+    private fb: FormBuilder 
+  ) {
+    this.initForm();
+  }
 
   ngOnInit() {
     this.cargarConfiguracion();
-    this.cargarDatos();
+    this.cargarDashboardCompleto();
   }
 
+
+  ngOnDestroy() {
+    if (this.chart) {
+      this.chart.destroy();
+    }
+  }
+
+
+  private initForm() {
+    this.ventaForm = this.fb.group({
+      categoria: [null, [Validators.required]],
+      marca: [{ value: null, disabled: true }, [Validators.required]],
+      monto: [0, [Validators.required, Validators.min(0.1)]] 
+    });
+  }
 
   cargarConfiguracion() {
     this.isConfigLoading = true;
-    this.ventaService.getProductosConfig().subscribe({
-      next: (config) => {
-        this.productosConfig = config;
-        this.categorias = Object.keys(config);
-        this.isConfigLoading = false;
+    this.ventaService.getProductosConfig()
+      .pipe(finalize(() => this.isConfigLoading = false))
+      .subscribe({
+        next: (config) => {
+          this.productosConfig = config;
+          this.categorias = Object.keys(config);
+        },
+        error: () => this.message.error('Error cargando configuración de productos')
+      });
+  }
+
+
+
+  cargarDashboardCompleto() {
+    this.isDashboardLoading = true;
+    const anio = new Date().getFullYear();
+
+    forkJoin({
+      ventas: this.ventaService.getVentas(),
+      stats: this.ventaService.getStats(),
+      indicadores: this.ventaService.getIndicadoresMensuales(anio)
+    })
+    .pipe(finalize(() => this.isDashboardLoading = false))
+    .subscribe({
+      next: (res) => {
+
+        this.ventasRaw = res.ventas;
+        this.stats = res.stats;
+        this.indicadoresMes = res.indicadores;
+
+        this.renderChart(res.ventas);
       },
-      error: () => {
-        this.isConfigLoading = false;
-      }
+      error: () => this.message.error('Error al cargar el dashboard')
+    });
+  }
+
+  aplicarFiltros() {
+    this.isDashboardLoading = true; 
+    const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
+
+
+    forkJoin({
+      ventas: this.ventaService.getVentas(filtros),
+      stats: this.ventaService.getStats(filtros)
+    })
+    .pipe(finalize(() => this.isDashboardLoading = false))
+    .subscribe({
+      next: (res) => {
+        this.ventasRaw = res.ventas;
+        this.stats = res.stats;
+        this.renderChart(res.ventas);
+      },
+      error: () => this.message.error('Error filtrando datos')
     });
   }
 
 
-  cargarDatos() {
-    this.isChartLoading = true;
 
-    this.ventaService.getVentas().subscribe({
-      next: (data) => {
-        this.ventasRaw = data;
-        this.renderChart(data);
-        this.isChartLoading = false;
-      },
-      error: () => this.isChartLoading = false
-    });
+  onCategoriaFormChange(cat: string) {
+    this.marcasForm = this.productosConfig[cat] || [];
 
-    this.ventaService.getStats().subscribe(stats => {
-      this.totalVentas = stats.totalVentas;
-      this.totalTransacciones = stats.totalTransacciones;
-      this.promedioVentas = stats.promedioVentas;
-    });
-  }
-
-  onCategoriaChange(cat: string, tipo: 'form' | 'filtro') {
-
-    if (tipo === 'form') {
-      this.marcasForm = this.productosConfig[cat] || [];
-      this.nuevaVenta.marca = '';
-    } else {
-      this.marcasFiltro = this.productosConfig[cat] || [];
-      this.marcaSeleccionada = 'Todas';
-      this.aplicarFiltros();
-    }
+    const marcaControl = this.ventaForm.get('marca');
+    marcaControl?.enable();
+    marcaControl?.setValue(null);
   }
 
   guardar() {
-  
-    if (!this.nuevaVenta.categoria || !this.nuevaVenta.marca || this.nuevaVenta.monto <= 0) {
-      this.message.warning('Por favor, selecciona una categoría, marca y un monto válido superior a 0.');
-      return; 
+
+    if (this.ventaForm.invalid) {
+
+      Object.values(this.ventaForm.controls).forEach(control => {
+        if (control.invalid) {
+          control.markAsDirty();
+          control.updateValueAndValidity({ onlySelf: true });
+        }
+      });
+      this.message.warning('Complete el formulario correctamente');
+      return;
     }
 
     this.isSaving = true;
-    this.ventaService.guardarVenta(this.nuevaVenta).subscribe({
+    const ventaData: Venta = this.ventaForm.value;
+
+    this.ventaService.guardarVenta(ventaData)
+      .pipe(finalize(() => this.isSaving = false))
+      .subscribe({
+        next: () => {
+          this.message.success('Venta registrada correctamente');
+          
+          this.ventaForm.reset({ monto: 0 });
+          this.ventaForm.get('marca')?.disable();
+          
+          this.aplicarFiltros(); 
+          this.recargarIndicadoresOnly(); 
+        },
+        error: () => this.message.error('Error al guardar venta')
+      });
+  }
+
+
+  onCategoriaFilterChange(cat: string) {
+    this.marcasFiltro = this.productosConfig[cat] || [];
+    this.marcaSeleccionada = 'Todas';
+    this.aplicarFiltros();
+  }
+
+
+  recargarIndicadoresOnly() {
+    const anio = new Date().getFullYear();
+    this.ventaService.getIndicadoresMensuales(anio).subscribe(data => this.indicadoresMes = data);
+  }
+
+  onMetaChange(item: IndicadorMensual) {
+    if (item.meta < 0) return;
+
+    this.ventaService.actualizarMetaMensual(item.id, item.meta).subscribe({
       next: () => {
-        this.cargarDatos();
-        this.message.success('Venta registrada correctamente');
-        this.nuevaVenta = { categoria: '', marca: '', monto: 0 };
-        this.isSaving = false;
+        this.message.success(`Meta actualizada`);
+        this.recargarIndicadoresOnly(); 
       },
-      error: () => {
-        this.isSaving = false;
-      }
+      error: () => this.message.error('Error al guardar meta')
     });
   }
 
-  
-  aplicarFiltros() {
-    this.isChartLoading = true;
-    const filtros = { categoria: this.catSeleccionada, marca: this.marcaSeleccionada };
 
-    
-    this.ventaService.getVentas(filtros).subscribe({
-      next: (dataAgrupada) => {
-        this.ventasRaw = dataAgrupada; 
-        this.renderChart(dataAgrupada); 
-        this.isChartLoading = false; 
-      },
-      error: () => this.isChartLoading = false
-    });
-
-    this.ventaService.getStats(filtros).subscribe({
-      next: (stats) => {
-        this.totalVentas = stats.totalVentas;
-        this.totalTransacciones = stats.totalTransacciones;
-        this.promedioVentas = stats.promedioVentas;
-      }
-    });
-  }
 
   renderChart(data: Venta[]) {
-  
-  if (!data || data.length === 0) {
-    if (this.chart) {
-      this.chart.changeData([]);
+    if (!data || data.length === 0) {
+      if (this.chart) {
+        this.chart.changeData([]);
+      }
+      return;
     }
-    return;
-  }
 
-  if (!this.chart) {
-    this.chart = new Column('container-grafico', {
-      data,
-      xField: 'marca',
-      yField: 'monto',
-      seriesField: 'categoria',
-      isGroup: true,
-      color: ['#1890ff', '#f5222d'],
-      label: {
-        position: 'middle',
-        content: (item: Record<string, any>) => {
-          return `S/. ${item['monto']}`;
+    if (!this.chart) {
+      const container = document.getElementById('container-grafico');
+      if(!container) return; 
+
+      this.chart = new Column(container, {
+        data,
+        xField: 'marca',
+        yField: 'monto',
+        seriesField: 'categoria',
+        isGroup: true,
+        color: ['#1890ff', '#f5222d'],
+        label: {
+          position: 'middle',
+          
+          content: (item) => `S/. ${item['monto']}`, 
+          style: { fill: '#FFFFFF', opacity: 0.6 },
         },
-        style: { fill: '#FFFFFF', opacity: 0.6 },
-      },
-      animation: {
-        appear: { animation: 'scale-in-y', duration: 1000 },
-      },
-    });
-    this.chart.render();
-  } else {
-   
-    this.chart.changeData(data);
+        animation: {
+          appear: { animation: 'scale-in-y', duration: 1000 },
+        },
+      });
+      this.chart.render();
+    } else {
+      this.chart.changeData(data);
+    }
   }
-}
 }
