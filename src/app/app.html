@@ -1,203 +1,194 @@
-<div class="min-h-screen bg-gray-100 p-4 md:p-8 font-sans">
+<div class="min-h-screen bg-slate-50 font-sans pb-20">
 
-  <header class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Panel de Control de Ventas</h1>
+  <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 mb-8 shadow-sm">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-600 tracking-tight">
+          Tablero Comercial
+        </h1>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Gestión de Indicadores 2026</p>
+      </div>
+      
+    </div>
   </header>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nz-spin [nzSpinning]="isDashboardLoading">
 
-    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-      <div class="flex items-center">
-        <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-          <i nz-icon nzType="dollar" class="text-xl"></i>
-        </div>
-        <div class="ml-4">
-          <p class="text-sm font-medium text-gray-500 uppercase">Total Ventas</p>
-          <p class="text-2xl font-bold text-gray-800">{{ stats.totalVentas | currency:'S/.' }}</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-      <div class="flex items-center">
-        <div class="p-3 rounded-full bg-green-100 text-green-600">
-          <i nz-icon nzType="line-chart" class="text-xl"></i>
-        </div>
-        <div class="ml-4">
-          <p class="text-sm font-medium text-gray-500 uppercase">Venta Promedio</p>
-          <p class="text-2xl font-bold text-gray-800">{{ stats.promedioVentas | currency:'S/.' }}</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-      <div class="flex items-center">
-        <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-          <i nz-icon nzType="shopping-cart" class="text-xl"></i>
-        </div>
-        <div class="ml-4">
-          <p class="text-sm font-medium text-gray-500 uppercase">Transacciones</p>
-          <p class="text-2xl font-bold text-gray-800">{{ stats.totalTransacciones }}</p>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-    <div class="lg:col-span-1">
-      <nz-card nzTitle="Ingresar Nueva Venta" class="shadow-md rounded-lg border-none">
-        <nz-skeleton [nzActive]="true" [nzLoading]="isConfigLoading">
-          
-          <form [formGroup]="ventaForm" (ngSubmit)="guardar()" class="flex flex-col gap-4">
-            
+      <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100 p-1 mb-10">
+        <div class="p-6">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Categoría</label>
-              <nz-select class="w-full" formControlName="categoria"
-                (ngModelChange)="onCategoriaFormChange($event)">
-                <nz-option *ngFor="let cat of categorias" [nzValue]="cat" [nzLabel]="cat"></nz-option>
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-3">
+                <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg shadow-sm">
+                  <i nz-icon nzType="line-chart" nzTheme="outline"></i>
+                </div>
+                Comparativa de Mercado
+              </h2>
+              <p class="text-sm text-slate-400 mt-1 ml-11">Analiza tendencias entre múltiples marcas</p>
+            </div>
+            
+            <div class="w-full md:w-1/2 lg:w-1/3">
+              <nz-select 
+                nzMode="multiple" 
+                nzPlaceHolder="Selecciona marcas para comparar..." 
+                class="w-full rounded-lg shadow-sm"
+                [(ngModel)]="marcasComparacion"
+                (ngModelChange)="actualizarGrafico()">
+                <nz-option *ngFor="let m of todasLasMarcas" [nzValue]="m" [nzLabel]="m"></nz-option>
+              </nz-select>
+            </div>
+          </div>
+          
+          <div class="h-80 w-full bg-gradient-to-b from-slate-50 to-white rounded-xl border border-slate-100 p-4 relative">
+             <div id="container-grafico" class="h-full w-full"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+        
+        <div class="bg-slate-50/80 border-b border-slate-200 p-6 flex flex-wrap justify-between items-end gap-6">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-3">
+              <div class="p-2 bg-blue-50 text-blue-600 rounded-lg shadow-sm">
+                <i nz-icon nzType="edit" nzTheme="outline"></i>
+              </div>
+              Editor de Metas
+            </h3>
+            <p class="text-sm text-slate-400 mt-1 ml-11">Ajusta las proyecciones y ventas reales</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+            
+            <div class="px-2 border-r border-slate-100">
+              <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Categoría</label>
+              <nz-select style="width: 140px;" class="border-transparent" [(ngModel)]="catSeleccionada" (ngModelChange)="actualizarListaMarcasEdicion()">
+                <nz-option *ngFor="let c of categorias" [nzValue]="c" [nzLabel]="c"></nz-option>
               </nz-select>
             </div>
 
-            <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Marca</label>
-              <nz-select class="w-full" formControlName="marca">
+            <div class="px-2">
+              <label class="block text-[10px] font-bold text-blue-600 mb-1 uppercase tracking-wider">Marca Activa</label>
+              <nz-select style="width: 180px;" 
+                [(ngModel)]="marcaEdicion" 
+                (ngModelChange)="cargarDatosTabla()"
+                nzPlaceHolder="Selecciona...">
                 <nz-option *ngFor="let m of marcasForm" [nzValue]="m" [nzLabel]="m"></nz-option>
               </nz-select>
             </div>
 
-            <div>
-              <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Monto (S/.)</label>
-              <nz-input-number class="w-full" formControlName="monto" [nzMin]="0"></nz-input-number>
-            </div>
-
-            <button nz-button nzType="primary" [nzLoading]="isSaving" 
-              [disabled]="ventaForm.invalid"
-              class="w-full h-10 mt-2 bg-blue-600 border-none rounded-md font-medium transition-colors">
-              Guardar
+            <button nz-button nzType="primary" 
+              [disabled]="!marcaEdicion" 
+              [nzLoading]="isSaving"
+              (click)="guardarTodo()"
+              class="ml-2 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 border-none font-bold px-6 rounded-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-600/40 hover:scale-105 transition-all duration-200 flex items-center">
+              <i nz-icon nzType="save" class="mr-2"></i> GUARDAR
             </button>
-          </form>
-
-        </nz-skeleton>
-      </nz-card>
-    </div>
-
-    <div class="lg:col-span-2">
-      <nz-card nzTitle="Análisis Visual" class="shadow-md rounded-lg border-none">
-
-        <nz-spin [nzSpinning]="isDashboardLoading" nzTip="Actualizando datos...">
-
-          <div class="flex flex-wrap gap-3 mb-6 bg-blue-50 p-4 rounded-lg">
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-blue-800 font-medium">Filtrar por:</span>
-              <nz-select class="w-36 md:w-44" [(ngModel)]="catSeleccionada"
-                (ngModelChange)="onCategoriaFilterChange($event)">
-                <nz-option nzValue="Todas" nzLabel="Todas las categorías"></nz-option>
-                <nz-option *ngFor="let cat of categorias" [nzValue]="cat" [nzLabel]="cat"></nz-option>
-              </nz-select>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <nz-select class="w-36 md:w-44" [(ngModel)]="marcaSeleccionada" (ngModelChange)="aplicarFiltros()"
-                [nzDisabled]="catSeleccionada === 'Todas'">
-                <nz-option nzValue="Todas" nzLabel="Todas las marcas"></nz-option>
-                <nz-option *ngFor="let m of marcasFiltro" [nzValue]="m" [nzLabel]="m"></nz-option>
-              </nz-select>
-            </div>
           </div>
-
-          <div class="w-full bg-white rounded-md p-2">
-            <div [hidden]="ventasRaw.length === 0" id="container-grafico" class="h-80 w-full"
-              [style.opacity]="isDashboardLoading ? 0.3 : 1">
-            </div>
-
-            <div *ngIf="ventasRaw.length === 0 && !isDashboardLoading"
-              class="h-80 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-lg">
-              <nz-empty nzNotFoundImage="https://gw.alipayobjects.com/zos/antfincdn/ZHrcdLPrvN/empty.svg"
-                [nzNotFoundContent]="contentTpl">
-                <ng-template #contentTpl>
-                  <span class="text-gray-400">No se encontraron registros para este filtro</span>
-                </ng-template>
-              </nz-empty>
-            </div>
-          </div>
-
-        </nz-spin>
-
-      </nz-card>
-
-      <div class="mt-8 bg-white p-4 rounded-xl shadow-sm overflow-x-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-bold text-gray-700">Desempeño Mensual (2026)</h3>
         </div>
 
-        <table class="min-w-full text-sm">
-          <thead>
-            <tr class="border-b-2 border-gray-100">
-              <th class="p-3 text-left bg-gray-50 sticky left-0 font-bold text-gray-600 min-w-[100px] z-20">
-                Indicador
-              </th>
-              <th *ngFor="let item of indicadoresMes"
-                class="p-3 text-center font-semibold text-gray-600 uppercase min-w-[90px]">
-                {{ item.mes }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+        <div *ngIf="!marcaEdicion" class="p-16 text-center bg-slate-50/30">
+          <nz-empty 
+            nzNotFoundImage="https://gw.alipayobjects.com/zos/antfincdn/ZHrcdLPrvN/empty.svg"
+            [nzNotFoundContent]="contentTpl">
+            <ng-template #contentTpl>
+              <span class="text-slate-400 font-medium">Selecciona una marca arriba para desbloquear el editor</span>
+            </ng-template>
+          </nz-empty>
+        </div>
 
-            <tr class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="p-3 font-semibold text-gray-700 bg-gray-50 sticky left-0 z-10">Real</td>
-              <td *ngFor="let item of indicadoresMes" class="p-3 text-center">
-                <span class="font-bold text-gray-800 text-xs md:text-sm">
-                  {{ item.real | currency:'S/.' : 'symbol' : '1.2-2' }}
-                </span>
-              </td>
-            </tr>
+        <div *ngIf="marcaEdicion" class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="bg-white border-b border-slate-200">
+                <th class="p-4 text-left w-40 sticky left-0 bg-white z-20 font-bold text-xs text-slate-400 uppercase tracking-wider shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)]">
+                  Indicador
+                </th>
+                <th *ngFor="let item of indicadoresMes" class="p-4 text-center font-bold text-slate-500 text-xs uppercase tracking-wider">
+                  {{ item.mes }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              
+              <tr class="group hover:bg-blue-50/30 transition-colors duration-150">
+                <td class="p-4 font-bold text-blue-700 sticky left-0 bg-white group-hover:bg-blue-50/30 z-10 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)] border-r border-transparent">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1 h-8 bg-blue-500 rounded-full"></div>
+                    REAL (S/.)
+                  </div>
+                </td>
+                <td *ngFor="let item of indicadoresMes" class="p-2 text-center">
+                  <input type="number" [(ngModel)]="item.real" 
+                    class="w-full text-center py-2 px-1 bg-transparent border border-transparent rounded-lg font-bold text-slate-700 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all duration-200 hover:border-slate-200 placeholder-slate-300">
+                </td>
+              </tr>
 
-            <tr class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="p-3 font-semibold text-gray-700 bg-gray-50 sticky left-0 z-10">Meta</td>
-              <td *ngFor="let item of indicadoresMes" class="p-3 text-center">
-                <input type="number" [(ngModel)]="item.meta" (blur)="onMetaChange(item)"
-                  (keyup.enter)="onMetaChange(item)"
-                  class="w-full text-center text-xs bg-gray-50 border border-transparent hover:border-blue-300 focus:border-blue-500 rounded px-1 py-1 transition-all outline-none"
-                  placeholder="0">
-                <div class="text-[10px] text-gray-400 mt-1">{{ item.meta | currency:'S/.' : 'symbol' : '1.0-0' }}</div>
-              </td>
-            </tr>
+              <tr class="group hover:bg-green-50/30 transition-colors duration-150">
+                <td class="p-4 font-bold text-green-700 sticky left-0 bg-white group-hover:bg-green-50/30 z-10 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)] border-r border-transparent">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1 h-8 bg-green-500 rounded-full"></div>
+                    META (S/.)
+                  </div>
+                </td>
+                <td *ngFor="let item of indicadoresMes" class="p-2 text-center">
+                  <input type="number" [(ngModel)]="item.meta" 
+                    class="w-full text-center py-2 px-1 bg-transparent border border-transparent rounded-lg font-medium text-slate-600 focus:bg-white focus:border-green-400 focus:ring-4 focus:ring-green-500/10 outline-none transition-all duration-200 hover:border-slate-200 placeholder-slate-300">
+                </td>
+              </tr>
 
-            <tr class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="p-3 font-semibold text-gray-700 bg-gray-50 sticky left-0 z-10">Variación</td>
-              <td *ngFor="let item of indicadoresMes" class="p-3 text-center">
-                <div class="flex items-center justify-center gap-1 text-xs font-bold"
-                  [ngClass]="item.variacion >= 0 ? 'text-green-600' : 'text-red-500'">
-                  <span *ngIf="item.variacion > 0">▲</span>
-                  <span *ngIf="item.variacion < 0">▼</span>
-                  <span>{{ item.variacion | number:'1.0-0' }}%</span>
-                </div>
-              </td>
-            </tr>
+              <tr class="bg-white">
+                <td class="p-4 font-semibold text-slate-500 sticky left-0 bg-white z-10 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)]">
+                  Variación
+                </td>
+                <td *ngFor="let item of indicadoresMes" class="p-3 text-center">
+                  <ng-container *ngIf="item.meta > 0; else sinMeta">
+                    <div class="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-colors duration-300"
+                      [ngClass]="((item.real - item.meta) / item.meta) >= 0 
+                        ? 'bg-green-50 text-green-600 border border-green-100' 
+                        : 'bg-red-50 text-red-600 border border-red-100'">
+                      
+                      <span *ngIf="((item.real - item.meta) / item.meta) > 0">▲</span>
+                      <span *ngIf="((item.real - item.meta) / item.meta) < 0">▼</span>
+                      <span>{{ ((item.real - item.meta) / item.meta) * 100 | number:'1.0-0' }}%</span>
+                    </div>
+                  </ng-container>
+                  <ng-template #sinMeta>
+                    <span class="text-slate-200 font-light text-xl">·</span>
+                  </ng-template>
+                </td>
+              </tr>
 
-            <tr class="hover:bg-gray-50">
-              <td class="p-3 font-semibold text-gray-700 bg-gray-50 sticky left-0 z-10">Score</td>
-              <td *ngFor="let item of indicadoresMes" class="p-3 text-center">
-                <span
-                  class="inline-block w-8 h-8 flex items-center justify-center rounded-full text-white text-[10px] font-bold mx-auto"
-                  [ngClass]="{
-                   'bg-green-500': item.score >= 100,
-                   'bg-green-400': item.score >= 80 && item.score < 100,
-                   'bg-yellow-400': item.score >= 50 && item.score < 80,
-                   'bg-red-400': item.score < 50
-                 }">
-                  {{ item.score }}
-                </span>
-              </td>
-            </tr>
+              <tr class="bg-slate-50/50">
+                <td class="p-4 font-semibold text-slate-500 sticky left-0 bg-slate-50 z-10 shadow-[4px_0_24px_-2px_rgba(0,0,0,0.05)] border-t border-slate-100">
+                  Score
+                </td>
+                <td *ngFor="let item of indicadoresMes" class="p-3 text-center border-t border-slate-100">
+                   <ng-container *ngIf="item.meta > 0; else sinMetaScore">
+                      
+                      <span class="inline-flex items-center justify-center w-9 h-9 rounded-full text-white text-[11px] font-bold shadow-md hover:scale-110 transition-transform cursor-default"
+                        [ngClass]="{
+                          'bg-green-500': item.score >= 100,
+                          'bg-emerald-400': item.score >= 80 && item.score < 100,
+                          'bg-yellow-400': item.score >= 50 && item.score < 80,
+                          'bg-red-400': item.score < 50
+                        }">
+                        {{ item.score }}
+                      </span>
 
-          </tbody>
-        </table>
+                   </ng-container>
+                   <ng-template #sinMetaScore>
+                      <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-200 text-slate-400 text-[10px] font-bold">0</span>
+                   </ng-template>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
 
+    </nz-spin>
   </div>
 </div>
